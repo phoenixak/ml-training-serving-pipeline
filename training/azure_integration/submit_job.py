@@ -10,9 +10,8 @@ from typing import Dict, Optional
 from pathlib import Path
 
 try:
-    from azure.ai.ml import MLClient, command, Input, Output
+    from azure.ai.ml import MLClient, command, Input
     from azure.ai.ml.entities import Environment, Job
-    from azure.ai.ml.constants import AssetTypes
     from azure.identity import DefaultAzureCredential
     AZURE_AVAILABLE = True
 except ImportError:

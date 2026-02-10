@@ -1,269 +1,149 @@
-# 🚀 ML Training & Serving Pipeline
+# ML Training and Serving Pipeline
 
-**Complete end-to-end machine learning pipeline from training to production API serving**
+End-to-end machine learning pipeline for training and serving a DLRM recommendation model.
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+## Overview
 
-## 🎯 **What This Project Does**
+This project implements a recommendation system using a simplified Deep Learning Recommendation Model (DLRM) trained on synthetic Amazon Electronics review data. It covers the full lifecycle: data generation, model training with PyTorch, artifact management, and a model loading/inference interface. An optional Azure ML integration supports submitting training jobs to the cloud with spot instance cost optimization.
 
-This project demonstrates a **production-ready ML pipeline** that:
+## Architecture
 
-- **Trains** SimpleDLRM recommendation models on Amazon Reviews data
-- **Serves** trained models via REST API with <50ms prediction latency  
-- **Scales** from local development (5K samples) to Azure ML cloud training (1M+ samples)
-- **Optimizes** costs with spot instances (60-90% savings) and right-sized compute
-- **Integrates** seamlessly: training outputs work directly with serving inputs
+The codebase is organized into three layers:
 
-**Real Results**: 735K parameter SimpleDLRM model trained in 1.5 seconds locally, serving 1000+ predictions/second
+- **training/** -- Data processing, DLRM model definition, and training loop. Supports local execution and Azure ML job submission.
+- **serving/** -- Model loader that reads training artifacts and exposes single prediction, batch prediction, and top-k recommendation methods.
+- **shared/** -- Configuration dataclasses for training, serving, and Azure settings, plus data processing and logging utilities shared across layers.
 
-## ⚡ **Quick Start (3 Commands)**
-
-```bash
-# 1. Setup environment
-conda create -n ml-pipeline python=3.11 -y
-conda activate ml-pipeline && pip install torch pandas numpy pyarrow
-
-# 2. Run complete pipeline  
-python examples/end_to_end_demo.py
-
-# 3. Check results
-ls -la models/
-```
-
-**Test predictions:**
-
-```python
-from serving.model_loader import DLRMModelLoader
-
-loader = DLRMModelLoader()
-loader.load_from_training_output("models")
-prediction = loader.predict_single("A0", "BE00001", {"verified": 1})
-print(f"Prediction: {prediction:.4f}")
-```
-
-## 🏗️ **Architecture Overview**
-
-```
-Local Training              Model Artifacts              Model Serving
-┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│ Amazon Reviews  │         │ SimpleDLRM      │         │ REST API        │
-│ Data Processing │  -----> │ PyTorch Model   │  -----> │ Recommendations │
-│ SimpleDLRM      │         │ User/Item Maps  │         │ Predictions     │
-│ Training        │         │ Model Metadata  │         │ Batch Inference │
-└─────────────────┘         └─────────────────┘         └─────────────────┘
-        │                           │                           │
-        ▼                           ▼                           ▼
-  Azure ML (Optional)          Model Registry           Production API
-```
-
-## 📊 **Key Features**
-
-### 🎯 **Training Pipeline**
-
-- **SimpleDLRM**: Efficient 3-layer DLRM optimized for production
-- **Smart Data Processing**: Handles datasets up to 200GB with 5GB memory
-- **Local Training**: Quick iteration on 5K-200K samples (1-30 seconds)
-- **Azure ML Integration**: Cloud training for 1M+ samples with cost optimization
-
-### 🚀 **Serving Pipeline**  
-
-- **Model Loading**: Automatic loading of training artifacts
-- **REST API Ready**: Production-grade model serving (BentoML integration planned)
-- **Prediction Types**: Single, batch, and recommendation generation
-- **Cold Start Handling**: Graceful fallback for unknown users/items
-
-### ☁️ **Azure ML Integration** (Optional)
-
-- **Spot Instances**: 60-90% cost savings with automatic retry
-- **Auto-scaling**: Right-sized compute based on dataset size
-- **Cost Estimates**: Transparent pricing before job submission
-- **Monitoring**: Real-time progress tracking in Azure ML Studio
-
-## 📁 **Project Structure**
+## Project Structure
 
 ```
 ml-training-serving-pipeline/
-├── training/                    # Model training pipeline
-│   ├── train_dlrm.py           # Main training script (234 lines)
+├── training/
+│   ├── train_dlrm.py              # Main training entry point
 │   ├── models/
-│   │   └── simple_dlrm.py      # SimpleDLRM model definition (111 lines)
-│   └── azure_integration/      # Azure ML cloud training
-│       └── submit_job.py       # Azure job submission (247 lines)
-├── serving/                     # Model serving pipeline  
-│   └── model_loader.py         # Model loading & prediction (296 lines)
-├── shared/                      # Common utilities and config
-│   ├── config/                 # Configuration management
-│   └── utils/                  # Data processing & logging
-├── examples/                    # Working demonstrations
-│   └── end_to_end_demo.py      # Complete pipeline demo (200 lines)
-├── docs/                       # Documentation
-│   └── azure_setup.md          # Azure ML setup guide
-└── tests/                      # Test suite
+│   │   └── simple_dlrm.py         # SimpleDLRM model definition
+│   └── azure_integration/
+│       └── submit_job.py          # Azure ML job submission
+├── serving/
+│   └── model_loader.py            # Model loading and prediction API
+├── shared/
+│   ├── config/
+│   │   ├── training_config.py     # DLRMTrainingConfig dataclass
+│   │   ├── serving_config.py      # ServingConfig dataclass
+│   │   └── azure_config.py        # AzureConfig dataclass
+│   └── utils/
+│       ├── data_processing.py     # Dataset generation and processing
+│       └── logging_utils.py       # Structured logging setup
+├── examples/
+│   └── end_to_end_demo.py         # Full train-load-predict demo
+├── tests/
+│   ├── conftest.py
+│   ├── test_config.py
+│   ├── test_data_processing.py
+│   ├── test_model.py
+│   └── test_model_loader.py
+├── docs/
+│   └── azure_setup.md             # Azure ML setup guide
+├── models/                        # Generated model artifacts (gitignored)
+├── Dockerfile
+├── Makefile
+├── pyproject.toml
+├── requirements.txt
+├── .env.example
+└── LICENSE
 ```
 
-## 🔧 **Development Commands**
+## Setup
+
+### Prerequisites
+
+- Python 3.10 or later
+- PyTorch 2.0 or later
+
+### Installation
+
+Install from `pyproject.toml` (recommended):
 
 ```bash
-# Setup
-make install              # Install dependencies
-make setup-conda          # Create conda environment
-
-# Local Training  
-make train-local          # Quick test (10K samples, 5 epochs)
-make train-local-full     # Full training (200K samples, 20 epochs)
-
-# Azure Training (Optional)
-make install-azure        # Install Azure ML dependencies
-make train-azure-small    # Cloud training (100K samples)
-make train-azure-large    # Large-scale training (1M samples)
-
-# Demo & Testing
-make demo                 # Run end-to-end demo
-make test                 # Run test suite
-make clean                # Clean generated files
+pip install -e .
 ```
 
-## 📈 **Performance Benchmarks**
-
-| Scale           | Samples | Training Time | Model Size | Prediction Latency | Throughput |
-| --------------- | ------- | ------------- | ---------- | ------------------ | ---------- |
-| **Quick Test**  | 1K      | 0.3s          | 900KB      | 1ms                | 1000/s     |
-| **Local Dev**   | 5K      | 1.5s          | 3MB        | 1ms                | 1000/s     |
-| **Local Full**  | 200K    | 30s           | 50MB       | 1ms                | 1000/s     |
-| **Azure Small** | 100K    | 3min          | 25MB       | 1ms                | 1000/s     |
-| **Azure Large** | 1M+     | 30min         | 200MB+     | 1ms                | 1000/s     |
-
-## 🚀 **Deployment Scenarios**
-
-### **Local Development**
+Or install from the pinned requirements file:
 
 ```bash
-# Train and test quickly
-python training/train_dlrm.py --local --samples 5000 --epochs 3
-python serving/model_loader.py  # Test model loading
+pip install -r requirements.txt
 ```
 
-### **Azure ML Training** (Optional)
+For development tooling (pytest, black, ruff, mypy):
 
 ```bash
-# Setup Azure credentials
-export AZURE_SUBSCRIPTION_ID="your-subscription-id"
-export AZURE_RESOURCE_GROUP="your-resource-group"  
-export AZURE_WORKSPACE_NAME="your-workspace-name"
-
-# Submit cloud training job
-python training/train_dlrm.py --azure --samples 1000000 --epochs 30
+pip install -e ".[dev]"
 ```
 
-### **Production API** (Ready for BentoML)
+For Azure ML support:
 
 ```bash
-# Install BentoML (planned integration)
-pip install bentoml
-
-# Start production API server (implementation ready)
-# bentoml serve serving/bentoml_service.py:svc
+pip install -e ".[azure]"
 ```
 
-## 🧪 **Complete Demo**
+### Configuration
+
+Copy `.env.example` to `.env` and edit as needed. Key variables:
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription (optional, for cloud training) | -- |
+| `AZURE_RESOURCE_GROUP` | Azure resource group | -- |
+| `AZURE_WORKSPACE_NAME` | Azure ML workspace name | -- |
+| `TRAINING_EPOCHS` | Number of training epochs | 20 |
+| `TRAINING_BATCH_SIZE` | Training batch size | 256 |
+| `TRAINING_SAMPLES` | Number of training samples | 10000 |
+| `MODEL_DIR` | Output directory for model artifacts | `models` |
+| `LOG_LEVEL` | Logging verbosity | `INFO` |
+
+## Usage
+
+### Training
+
+Run local training via the CLI:
 
 ```bash
-# Run the full end-to-end demonstration
-python examples/end_to_end_demo.py
+python training/train_dlrm.py --local --samples 10000 --epochs 5
 ```
 
-**Sample Output:**
+This generates synthetic review data, trains a SimpleDLRM model, and writes artifacts to the `models/` directory:
 
-```
-🚀 ML Training & Serving Pipeline Demo
-============================================================
-📚 Step 1: Training DLRM model...
-✅ Training completed in 1.5 seconds
-📊 Model info: 735,745 parameters
-📈 Final loss: 0.6463
+- `amazon_dlrm_model.pth` -- serialized model weights
+- `model_info.json` -- model metadata (parameter count, loss, architecture)
+- `data_mappings.json` -- user/item ID-to-index mappings
 
-🔧 Step 2: Loading model for serving...
-✅ Model loaded successfully
-📊 Model ready: 735,745 parameters on cpu
+Makefile shortcuts:
 
-🎯 Step 3: Generating predictions...
-Sample predictions:
-  User A0 → Item BE00000: 0.6051
-  User A1 → Item BE00001: 0.6089
-
-Recommendations for user A0:
-  1. BE00277: 0.6437 (confidence: 1.00)
-  2. BE00646: 0.6427 (confidence: 1.00)
-
-🎉 Demo completed successfully!
+```bash
+make train-local          # 10K samples, 5 epochs
+make train-local-full     # 200K samples, 20 epochs
 ```
 
-## 🎯 **Technical Deep Dive**
+#### Azure ML Training (Optional)
 
-### **SimpleDLRM Architecture**
+Set the Azure environment variables (see Configuration above), then:
 
-- **Embedding Layers**: User (5K) + Item (5K) embeddings (64-dim each)
-- **Dense Features**: 6 contextual features (verified, review_length, time-based)
-- **Interaction Layer**: Concatenation + 3-layer MLP (256→128→1)
-- **Output**: Sigmoid prediction (0-1 rating probability)
-- **Parameters**: 735K (5K users/items), scales linearly with vocabulary
-
-### **Data Pipeline**
-
-- **Source**: Synthetic Amazon Reviews Electronics data (realistic distributions)
-- **Processing**: Streaming processing with memory optimization (5GB limit)
-- **Features**: User/item IDs + temporal + behavioral features  
-- **Storage**: Parquet compression + JSON metadata
-- **Validation**: Automatic schema validation and data quality checks
-
-### **Azure ML Integration**
-
-- **Cost Optimization**: Spot instances with 60-90% savings
-- **Auto-scaling**: Instance selection based on dataset size
-- **Monitoring**: Real-time progress in Azure ML Studio
-- **Fault Tolerance**: Automatic retry on spot instance preemption
-
-## 💰 **Cost Analysis**
-
-### Local Training (Free)
-
-- **Hardware**: Any laptop/desktop with 4GB+ RAM
-- **Time**: 1-30 seconds for development datasets
-- **Cost**: $0
-
-### Azure ML Training (Optional)
-
-| Dataset Size | Instance | Duration | Regular Cost | Spot Cost | Savings |
-| ------------ | -------- | -------- | ------------ | --------- | ------- |
-| 100K samples | F4s_v2   | 3 min    | $0.01        | $0.003    | 70%     |
-| 500K samples | F8s_v2   | 15 min   | $0.10        | $0.03     | 70%     |
-| 1M samples   | D8s_v3   | 30 min   | $0.22        | $0.07     | 68%     |
-
-## 🤝 **Contributing**
-
-1. **Setup**: `make setup-conda`
-2. **Code**: Follow existing patterns in `/training` and `/serving`
-3. **Test**: Ensure `examples/end_to_end_demo.py` works
-4. **Document**: Update relevant docs in `/docs`
-
-## 🔗 **Integration Examples**
-
-### **Model Training**
-
-```python
-from shared.config.training_config import DLRMTrainingConfig
-from training.train_dlrm import train_local
-
-config = DLRMTrainingConfig()
-config.max_samples = 50000
-config.epochs = 10
-
-result = train_local(config)
-print(f"Trained model: {result['model_path']}")
+```bash
+python training/train_dlrm.py --azure --samples 100000 --epochs 10
 ```
 
-### **Model Serving**
+Or use the Makefile targets:
+
+```bash
+make train-azure-small    # 100K samples, 10 epochs
+make train-azure-large    # 1M samples, 30 epochs
+```
+
+The Azure integration selects an instance type based on dataset size and enables spot instances by default for cost savings. See `docs/azure_setup.md` for detailed setup instructions.
+
+### Serving / Inference
+
+Load a trained model and generate predictions:
 
 ```python
 from serving.model_loader import DLRMModelLoader
@@ -272,51 +152,81 @@ loader = DLRMModelLoader()
 loader.load_from_training_output("models")
 
 # Single prediction
-score = loader.predict_single("user123", "item456", {"verified": 1})
+score = loader.predict_single("user_id", "item_id", {"verified": 1})
 
 # Batch predictions
-scores = loader.predict_batch(["user1", "user2"], ["item1", "item2"])
+scores = loader.predict_batch(
+    ["user_a", "user_b"],
+    ["item_x", "item_y"],
+)
 
-# Recommendations
-recs = loader.recommend_items("user123", num_recommendations=10)
+# Top-k recommendations
+recs = loader.recommend_items("user_id", num_recommendations=10)
 ```
 
-### **Azure ML Training**
+Unknown user or item IDs are handled with a cold-start fallback (returns 0.5 for predictions, or a default popular-item list for recommendations).
 
-```python
-# Set environment variables first
-import os
-os.environ['AZURE_SUBSCRIPTION_ID'] = 'your-subscription-id'
-os.environ['AZURE_RESOURCE_GROUP'] = 'your-resource-group'
-os.environ['AZURE_WORKSPACE_NAME'] = 'your-workspace-name'
+You can also run the model loader directly to verify that artifacts load correctly:
 
-# Submit training job
-from training.train_dlrm import submit_to_azure
-
-config = DLRMTrainingConfig()
-config.max_samples = 1000000  # 1M samples
-config.epochs = 30
-
-job = submit_to_azure(config)
-print(f"Azure job: {job.studio_url}")
+```bash
+python -m serving.model_loader
 ```
 
-## 📜 **License**
+### End-to-End Demo
 
-MIT License - see LICENSE file for details.
+Run the complete train-then-serve workflow:
 
-## 🏆 **Success Criteria**
+```bash
+python examples/end_to_end_demo.py
+```
 
-✅ **3-Command Setup**: Clone → Install → Demo works in <5 minutes  
-✅ **Training Output**: Produces compatible model artifacts  
-✅ **Serving Integration**: Models load seamlessly for predictions  
-✅ **Performance**: <50ms prediction latency, 1000+ RPS throughput  
-✅ **Cloud Ready**: Azure ML integration with cost optimization  
-✅ **Code Quality**: Clean, documented, tested codebase  
-✅ **Real Demo**: Complete end-to-end workflow demonstration  
+This trains a small model (5K samples, 3 epochs), loads it, and runs sample predictions and recommendations. A `--quick` flag skips training and tests an already-trained model:
 
----
+```bash
+python examples/end_to_end_demo.py --quick
+```
 
-**Built with**: PyTorch • Azure ML • Pandas • NumPy
+## Docker
 
-**Ready for**: Production API serving • Cloud scaling • Cost optimization
+The Dockerfile defines two build stages: `training` and `serving`.
+
+Build and run training:
+
+```bash
+docker build --target training -t dlrm-training .
+docker run dlrm-training
+```
+
+Build and run serving:
+
+```bash
+docker build --target serving -t dlrm-serving .
+docker run -p 8000:8000 dlrm-serving
+```
+
+## Testing
+
+Run the test suite:
+
+```bash
+make test
+```
+
+Run with coverage:
+
+```bash
+make test-cov
+```
+
+Other development commands:
+
+```bash
+make format        # Format code with black
+make lint          # Lint with ruff
+make type-check    # Type-check with mypy
+make clean         # Remove generated files and caches
+```
+
+## License
+
+MIT -- see [LICENSE](LICENSE).

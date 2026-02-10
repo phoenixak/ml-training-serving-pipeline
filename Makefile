@@ -1,5 +1,5 @@
 # ML Training & Serving Pipeline - Essential Commands
-.PHONY: help install train-local serve-local test clean format lint
+.PHONY: help install install-dev train-local train-local-full install-azure train-azure-small train-azure-large test-azure serve-local serve test test-cov format lint type-check clean demo check-env show-models
 
 help: ## Show this help message
 	@echo "ML Training & Serving Pipeline - Commands"
@@ -10,44 +10,51 @@ help: ## Show this help message
 install: ## Install dependencies
 	pip install -r requirements.txt
 
-setup-conda: ## Setup conda environment
-	conda create -n ml-pipeline python=3.11 -y
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && pip install -r requirements.txt
+install-dev: ## Install development dependencies
+	pip install -e ".[dev]"
 
 ##@ Training
 train-local: ## Train DLRM model locally (quick test)
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python training/train_dlrm.py --local --samples 10000 --epochs 5
+	python training/train_dlrm.py --local --samples 10000 --epochs 5
 
 train-local-full: ## Train DLRM model locally (full dataset)
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python training/train_dlrm.py --local --samples 200000 --epochs 20
+	python training/train_dlrm.py --local --samples 200000 --epochs 20
 
 ##@ Azure Training (Optional - for scaling up)
 install-azure: ## Install Azure ML dependencies
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && pip install azure-ai-ml azure-identity
+	pip install -e ".[azure]"
 
 train-azure-small: ## Train on Azure ML (small dataset)
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python training/train_dlrm.py --azure --samples 100000 --epochs 10
+	python training/train_dlrm.py --azure --samples 100000 --epochs 10
 
 train-azure-large: ## Train on Azure ML (large dataset)
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python training/train_dlrm.py --azure --samples 1000000 --epochs 30
+	python training/train_dlrm.py --azure --samples 1000000 --epochs 30
 
 test-azure: ## Test Azure ML connection
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python training/azure_integration/submit_job.py
+	python training/azure_integration/submit_job.py
 
-##@ Serving (TODO: Implement after training works)
-serve-local: ## Start local BentoML server
-	@echo "🚧 Serving pipeline coming next..."
-	# eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python serving/bentoml_service.py
+##@ Serving
+serve-local: ## Start local model serving
+	python -m serving.model_loader
+
+serve: ## Start FastAPI serving app
+	uvicorn serving.app:app --reload --port 8000
 
 ##@ Development
-test: ## Run basic tests
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python -m pytest tests/ -v
+test: ## Run tests
+	python -m pytest tests/ -v
+
+test-cov: ## Run tests with coverage
+	python -m pytest tests/ -v --cov=training --cov=serving --cov=shared
 
 format: ## Format code
 	black training/ serving/ shared/ examples/ tests/
-	
+
 lint: ## Lint code
 	ruff check training/ serving/ shared/ examples/ tests/
+
+type-check: ## Run type checking
+	mypy training/ serving/ shared/
 
 clean: ## Clean generated files
 	find . -type f -name "*.pyc" -delete
@@ -56,11 +63,11 @@ clean: ## Clean generated files
 
 ##@ Demo
 demo: ## Run end-to-end demo
-	eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python examples/end_to_end_demo.py
+	python examples/end_to_end_demo.py
 
 ##@ Info
-check-env: ## Check conda environment
-	@eval "$(conda shell.bash hook)" && conda activate ml-pipeline && python -c "import torch, pandas, numpy; print('✅ Dependencies OK')"
+check-env: ## Check environment
+	python -c "import torch, pandas, numpy; print('Dependencies OK')"
 
 show-models: ## Show trained models
 	@ls -la models/ 2>/dev/null || echo "No models directory found"
