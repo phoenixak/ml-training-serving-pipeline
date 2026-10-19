@@ -1,0 +1,45 @@
+{
+  "test": {
+    "Popularity": {
+      "recall@10": 0.04025,
+      "ndcg@10": 0.019837323090774704,
+      "recall@50": 0.12855,
+      "coverage@10": 0.023645114040594266
+    },
+    "Item-kNN (cosine over co-likes)": {
+      "recall@10": 0.0727,
+      "ndcg@10": 0.037329749862148855,
+      "recall@50": 0.21385,
+      "coverage@10": 0.21573550952082027
+    },
+    "Two-tower retrieval": {
+      "recall@10": 0.13905,
+      "ndcg@10": 0.07403217108491089,
+      "recall@50": 0.3606,
+      "coverage@10": 0.7267210713538397
+    },
+    "Two-tower + DLRM ranker": {
+      "recall@10": 0.15075,
+      "ndcg@10": 0.07913300200323418,
+      "recall@50": 0.3721,
+      "coverage@10": 0.7187696170747018
+    }
+  },
+  "users_evaluated": 20000,
+  "params": {
+    "data": "data/processed",
+    "out": "artifacts",
+    "dim": 64,
+    "epochs": 6,
+    "per_user": 8,
+    "batch": 1024,
+    "lr": 0.002,
+    "temperature": 0.05,
+    "ranker_users": 30000,
+    "eval_users": 20000,
+    "threads": 16,
+    "seed": 0,
+    "no_mlflow": false,
+    "reuse_retrieval": true
+  }
+}

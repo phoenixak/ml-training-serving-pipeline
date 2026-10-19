@@ -106,10 +106,10 @@ data/
 *.csv
 *.json
 datasets/
-artifacts/
 outputs/
 runs/
 mlruns/
+mlflow.db
 wandb/
 
 # Azure
@@ -140,3 +140,16 @@ logs/
 *.temp
 temp/
 tmp/
+# v2
+.venv/
+.ruff_cache/
+data/
+artifacts/checkpoint.pt
+mlruns/
+mlflow.db
+train.log
+train_ranker.log
+space_local.log
+!artifacts/*.onnx
+!artifacts/*.json
+!artifacts/*.npy

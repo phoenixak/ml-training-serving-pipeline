@@ -1,232 +1,92 @@
-# ML Training and Serving Pipeline
+# Two-stage movie recommender — v2
 
-End-to-end machine learning pipeline for training and serving a DLRM recommendation model.
+[![CI](https://github.com/phoenixak/ml-training-serving-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/phoenixak/ml-training-serving-pipeline/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/%F0%9F%A4%97%20Live%20demo-Hugging%20Face-F4F1EA?labelColor=141310)](https://huggingface.co/spaces/Phoenixak99/movie-recommender)
+![Python](https://img.shields.io/badge/python-3.11%2B-141310)
 
-## Overview
+The recommendation architecture large platforms use, trained end to end on **MovieLens-32M** and served without PyTorch: a **two-tower** model retrieves 100 candidates from the catalogue, a **DLRM-style ranker** re-orders them, and both run in **ONNX Runtime** in about 2 ms per request on two CPU threads.
 
-This project implements a recommendation system using a simplified Deep Learning Recommendation Model (DLRM) trained on synthetic Amazon Electronics review data. It covers the full lifecycle: data generation, model training with PyTorch, artifact management, and a model loading/inference interface. An optional Azure ML integration supports submitting training jobs to the cloud with spot instance cost optimization.
+**[Try the live demo →](https://huggingface.co/spaces/Phoenixak99/movie-recommender)** Pick a few movies you like; every recommendation says which of your picks it is closest to. Because users are represented by the movies they liked rather than by an id, a brand-new visitor gets real recommendations immediately.
 
-## Architecture
+## Results
 
-The codebase is organized into three layers:
+Chronological leave-last-out on 20,000 held-out users: each user's last like is the target, ranked against the full catalogue of 4,779 movies with their earlier likes excluded.
 
-- **training/** -- Data processing, DLRM model definition, and training loop. Supports local execution and Azure ML job submission.
-- **serving/** -- Model loader that reads training artifacts and exposes single prediction, batch prediction, and top-k recommendation methods.
-- **shared/** -- Configuration dataclasses for training, serving, and Azure settings, plus data processing and logging utilities shared across layers.
+| Method | Recall@10 | NDCG@10 | Recall@50 | Catalogue coverage@10 |
+|---|---:|---:|---:|---:|
+| Popularity | 0.040 | 0.020 | 0.129 | 2% |
+| Item-kNN (cosine over co-likes) | 0.073 | 0.037 | 0.214 | 22% |
+| Two-tower retrieval | 0.139 | 0.074 | 0.361 | 73% |
+| **Two-tower + DLRM ranker** | **0.151** | **0.079** | **0.372** | **72%** |
 
-## Project Structure
+The final system finds the held-out movie in its top 10 for **15.1%** of users — **3.7×** popularity and **2.1×** item-kNN — while still recommending from 72% of the catalogue rather than the same blockbusters.
+
+**What didn't work first:** a ranker trained point-wise (binary cross-entropy per candidate, from scratch) *lowered* Recall@10 to 0.126 and collapsed coverage to 47%, drifting back toward popular movies. Making it a **residual** on the retrieval score (it starts exactly at the retrieval order and learns a correction) and training it **listwise** (a softmax over each user's 100 candidates) turned that into the +8% above.
+
+## How it works
 
 ```
-ml-training-serving-pipeline/
-├── training/
-│   ├── train_dlrm.py              # Main training entry point
-│   ├── models/
-│   │   └── simple_dlrm.py         # SimpleDLRM model definition
-│   └── azure_integration/
-│       └── submit_job.py          # Azure ML job submission
-├── serving/
-│   └── model_loader.py            # Model loading and prediction API
-├── shared/
-│   ├── config/
-│   │   ├── training_config.py     # DLRMTrainingConfig dataclass
-│   │   ├── serving_config.py      # ServingConfig dataclass
-│   │   └── azure_config.py        # AzureConfig dataclass
-│   └── utils/
-│       ├── data_processing.py     # Dataset generation and processing
-│       └── logging_utils.py       # Structured logging setup
-├── examples/
-│   └── end_to_end_demo.py         # Full train-load-predict demo
-├── tests/
-│   ├── conftest.py
-│   ├── test_config.py
-│   ├── test_data_processing.py
-│   ├── test_model.py
-│   └── test_model_loader.py
-├── docs/
-│   └── azure_setup.md             # Azure ML setup guide
-├── models/                        # Generated model artifacts (gitignored)
-├── Dockerfile
-├── Makefile
-├── pyproject.toml
-├── requirements.txt
-├── .env.example
-└── LICENSE
+MovieLens-32M ratings ── rating ≥ 4 = like ──▶ 80,000 users · 4,779 movies · 7.3M training likes
+                                                 last like = test · second-to-last = validation
+
+ user's likes (≤50, newest first)                              every movie
+          │                                                         │
+   item tower (shared) ──▶ self-attention ──▶ user vector    item tower: id + genres + decade
+          │                                         │               │
+          └──────────────── dot product ◀───────────┴── 4,779 item vectors (precomputed)
+                                    │
+                         top-100 candidates (retrieval)
+                                    │
+        DLRM ranker: item id · genres · decade · user vec · item vec · dense features
+        (retrieval score, popularity, genre affinity, similarity to recent likes …)
+        → pairwise dot-product interactions → MLP → correction to the retrieval score
+                                    │
+                    top-10, each with "because you liked …"
 ```
 
-## Setup
+| Piece | Details |
+|---|---|
+| Retrieval training | In-batch sampled softmax (batch 1,024, temperature 0.05) with logQ correction for popularity; 8 next-like samples per user per epoch; best epoch picked on validation NDCG@10 |
+| User tower | One pre-norm self-attention block over the item vectors of the last 50 likes + recency embeddings, mean-pooled. Written out explicitly so PyTorch and ONNX run identical maths (tested) |
+| Ranker | DLRM-style: 6 feature vectors projected to 16-d, all 15 pairwise dot products + dense features → MLP; residual on the retrieval logit; listwise loss on validation-time candidates |
+| Tracking | MLflow (local store): parameters, per-epoch validation metrics and the final test table |
+| Serving | `user_tower.onnx` + `ranker.onnx` + item vectors in numpy; no PyTorch at inference. Requests take ~2 ms on 2 threads |
 
-### Prerequisites
-
-- Python 3.10 or later
-- PyTorch 2.0 or later
-
-### Installation
-
-Install from `pyproject.toml` (recommended):
+## Run it
 
 ```bash
-pip install -e .
+python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -e ".[train,api,demo,dev]"
+
+# data: MovieLens-32M from GroupLens (239 MB)
+curl -L -o data/raw/ml-32m.zip https://files.grouplens.org/datasets/movielens/ml-32m.zip && unzip data/raw/ml-32m.zip -d data/raw
+python -m recsys.data                     # → data/processed (~20 s)
+python -m recsys.train --out artifacts    # ~25 min on a 16-thread CPU; evaluates, logs to MLflow, exports ONNX
+mlflow ui --backend-store-uri ./mlruns    # browse runs
+
+python space/app.py                       # the demo on http://127.0.0.1:7860
+uvicorn recsys.api:app --app-dir src      # the API
+pytest -q                                 # 7 tests, incl. ONNX ↔ PyTorch equivalence; no download needed
 ```
 
-Or install from the pinned requirements file:
+The exported serving files are committed in `artifacts/` (4.5 MB), so the API and demo work without training.
 
-```bash
-pip install -r requirements.txt
-```
+## API
 
-For development tooling (pytest, black, ruff, mypy):
+| Endpoint | What it does |
+|---|---|
+| `POST /recommend` `{"liked": [2571, 589], "k": 10, "rerank": true}` | Top-k for a list of liked MovieLens `movieId`s (oldest first), each with `because` |
+| `GET /similar/{movieId}` | Nearest movies in the item-vector space |
+| `GET /movies/search?q=matrix` | Title search, most-liked first |
+| `GET /health` | Status and catalogue size |
 
-```bash
-pip install -e ".[dev]"
-```
+`docker build -t recsys . && docker run -p 8000:8000 recsys` serves it (onnxruntime + numpy only).
 
-For Azure ML support:
+## What changed from v1
 
-```bash
-pip install -e ".[azure]"
-```
+v1 (tagged [`v1`](https://github.com/phoenixak/ml-training-serving-pipeline/tree/v1)) trained a simplified DLRM on synthetic data, reported no evaluation and had no demo; its optional Azure ML job submission is not carried over. v2 trains on real data with a chronological split, compares against baselines, adds retrieval, a ranker that measurably helps, ONNX serving, tests that check the export is exact, and a public demo.
 
-### Configuration
+## Data and licence
 
-Copy `.env.example` to `.env` and edit as needed. Key variables:
-
-| Variable | Description | Default |
-| --- | --- | --- |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription (optional, for cloud training) | -- |
-| `AZURE_RESOURCE_GROUP` | Azure resource group | -- |
-| `AZURE_WORKSPACE_NAME` | Azure ML workspace name | -- |
-| `TRAINING_EPOCHS` | Number of training epochs | 20 |
-| `TRAINING_BATCH_SIZE` | Training batch size | 256 |
-| `TRAINING_SAMPLES` | Number of training samples | 10000 |
-| `MODEL_DIR` | Output directory for model artifacts | `models` |
-| `LOG_LEVEL` | Logging verbosity | `INFO` |
-
-## Usage
-
-### Training
-
-Run local training via the CLI:
-
-```bash
-python training/train_dlrm.py --local --samples 10000 --epochs 5
-```
-
-This generates synthetic review data, trains a SimpleDLRM model, and writes artifacts to the `models/` directory:
-
-- `amazon_dlrm_model.pth` -- serialized model weights
-- `model_info.json` -- model metadata (parameter count, loss, architecture)
-- `data_mappings.json` -- user/item ID-to-index mappings
-
-Makefile shortcuts:
-
-```bash
-make train-local          # 10K samples, 5 epochs
-make train-local-full     # 200K samples, 20 epochs
-```
-
-#### Azure ML Training (Optional)
-
-Set the Azure environment variables (see Configuration above), then:
-
-```bash
-python training/train_dlrm.py --azure --samples 100000 --epochs 10
-```
-
-Or use the Makefile targets:
-
-```bash
-make train-azure-small    # 100K samples, 10 epochs
-make train-azure-large    # 1M samples, 30 epochs
-```
-
-The Azure integration selects an instance type based on dataset size and enables spot instances by default for cost savings. See `docs/azure_setup.md` for detailed setup instructions.
-
-### Serving / Inference
-
-Load a trained model and generate predictions:
-
-```python
-from serving.model_loader import DLRMModelLoader
-
-loader = DLRMModelLoader()
-loader.load_from_training_output("models")
-
-# Single prediction
-score = loader.predict_single("user_id", "item_id", {"verified": 1})
-
-# Batch predictions
-scores = loader.predict_batch(
-    ["user_a", "user_b"],
-    ["item_x", "item_y"],
-)
-
-# Top-k recommendations
-recs = loader.recommend_items("user_id", num_recommendations=10)
-```
-
-Unknown user or item IDs are handled with a cold-start fallback (returns 0.5 for predictions, or a default popular-item list for recommendations).
-
-You can also run the model loader directly to verify that artifacts load correctly:
-
-```bash
-python -m serving.model_loader
-```
-
-### End-to-End Demo
-
-Run the complete train-then-serve workflow:
-
-```bash
-python examples/end_to_end_demo.py
-```
-
-This trains a small model (5K samples, 3 epochs), loads it, and runs sample predictions and recommendations. A `--quick` flag skips training and tests an already-trained model:
-
-```bash
-python examples/end_to_end_demo.py --quick
-```
-
-## Docker
-
-The Dockerfile defines two build stages: `training` and `serving`.
-
-Build and run training:
-
-```bash
-docker build --target training -t dlrm-training .
-docker run dlrm-training
-```
-
-Build and run serving:
-
-```bash
-docker build --target serving -t dlrm-serving .
-docker run -p 8000:8000 dlrm-serving
-```
-
-## Testing
-
-Run the test suite:
-
-```bash
-make test
-```
-
-Run with coverage:
-
-```bash
-make test-cov
-```
-
-Other development commands:
-
-```bash
-make format        # Format code with black
-make lint          # Lint with ruff
-make type-check    # Type-check with mypy
-make clean         # Remove generated files and caches
-```
-
-## License
-
-MIT -- see [LICENSE](LICENSE).
+Code: MIT. Data: **MovieLens 32M** — F. Maxwell Harper and Joseph A. Konstan. 2015. *The MovieLens Datasets: History and Context.* ACM Transactions on Interactive Intelligent Systems (TiiS) 5, 4: 19:1–19:19. The files in `artifacts/` are derived from it and are shared under the same GroupLens terms: research and non-commercial use, acknowledgement required, no endorsement by the University of Minnesota or GroupLens implied.
