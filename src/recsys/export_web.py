@@ -31,12 +31,25 @@ def main() -> None:
         shutil.copy2(a / f, out / f)
 
     items = json.loads((a / "items.json").read_text(encoding="utf-8"))
-    slim = [[m["idx"], m["movieId"], m["title"], m["year"], [g for g in m["genres"] if g != "(no genres listed)"],
-             int(m["tmdbId"]) if m.get("tmdbId") == m.get("tmdbId") and m.get("tmdbId") else None, m["n_likes"]]
-            for m in items]
+    slim = [
+        [
+            m["idx"],
+            m["movieId"],
+            m["title"],
+            m["year"],
+            [g for g in m["genres"] if g != "(no genres listed)"],
+            int(m["tmdbId"]) if m.get("tmdbId") == m.get("tmdbId") and m.get("tmdbId") else None,
+            m["n_likes"],
+        ]
+        for m in items
+    ]
     (out / "items.json").write_text(json.dumps(slim, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     manifest = json.loads((a / "manifest.json").read_text())
-    meta = {**manifest, "n_genres": int(genres.shape[1]), "fields": ["idx", "movieId", "title", "year", "genres", "tmdbId", "n_likes"]}
+    meta = {
+        **manifest,
+        "n_genres": int(genres.shape[1]),
+        "fields": ["idx", "movieId", "title", "year", "genres", "tmdbId", "n_likes"],
+    }
     (out / "meta.json").write_text(json.dumps(meta, indent=2))
     total = sum(p.stat().st_size for p in out.iterdir())
     print(f"wrote {out} ({total / 1e6:.1f} MB)")
