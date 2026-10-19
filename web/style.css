@@ -1,0 +1,47 @@
+/* paper & ink, matching ahmed.fynxforge.com */
+:root, .dark {
+    --paper: #F4F1EA; --card: #FFFDF8; --ink: #141310; --mute: #6B665C; --line: #DAD4C7; --accent: #C2341B;
+    --body-background-fill: var(--paper); --background-fill-primary: var(--card); --background-fill-secondary: var(--paper);
+    --block-background-fill: var(--card); --block-border-color: var(--line); --body-text-color: var(--ink);
+    --input-background-fill: var(--card); --border-color-primary: var(--line);
+    --button-primary-background-fill: var(--ink); --button-primary-background-fill-hover: var(--accent);
+    --button-primary-text-color: var(--paper); --color-accent: var(--accent); --link-text-color: var(--accent);
+}
+.hd { padding: 18px 0 6px; border-bottom: 1px solid var(--ink); margin-bottom: 10px; }
+.hd h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 600; font-size: 40px; margin: 4px 0 8px; color: var(--ink); }
+.kicker, .sec, .ft, .muted, .trace th { font-family: ui-monospace, 'JetBrains Mono', Consolas, monospace; }
+.kicker { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin: 0; }
+.lede { max-width: 820px; color: #3A372F; line-height: 1.55; margin: 0 0 8px; }
+.links a { color: var(--accent); margin-right: 18px; text-decoration: none; font-size: 14px; }
+.answer { font-size: 18px; line-height: 1.6; color: var(--ink); padding: 14px 16px; background: var(--card); border: 1px solid var(--ink); border-radius: 3px; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 15px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 8px 20px 40px; }
+.layout { display: grid; grid-template-columns: minmax(260px, 4fr) 7fr; gap: 22px; margin-top: 8px; }
+.lbl { display: block; margin: 0 0 6px; font: 500 11px ui-monospace, 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.search { position: relative; }
+.search input { width: 100%; padding: 10px 12px; font: inherit; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); }
+.search input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+.suggest { position: absolute; z-index: 5; left: 0; right: 0; margin: 2px 0 0; padding: 4px 0; list-style: none; background: var(--card); border: 1px solid var(--ink); border-radius: 3px; max-height: 280px; overflow: auto; }
+.suggest li { padding: 7px 12px; cursor: pointer; } .suggest li:hover { background: var(--paper); }
+.picked { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
+.chip { display: inline-flex; gap: 6px; align-items: center; padding: 5px 10px; border: 0; border-radius: 999px; background: var(--ink); color: var(--paper); font: 13px Inter, system-ui, sans-serif; cursor: pointer; }
+.chip:hover { background: var(--accent); }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }
+.preset { padding: 7px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--card); color: var(--ink); font: 13px Inter, system-ui, sans-serif; cursor: pointer; }
+.preset:hover { border-color: var(--ink); }
+.toggle { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.toggle input { accent-color: var(--accent); }
+.stats { margin-top: 10px; }
+.muted { color: var(--mute); font-size: 13px; }
+.ft { font-size: 12px; color: var(--mute); border-top: 1px solid var(--line); padding-top: 12px; margin-top: 28px; font-family: ui-monospace, 'JetBrains Mono', Consolas, monospace; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.card { padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--ink); border-radius: 3px; }
+.card:first-child { border-top-color: var(--accent); }
+.card h4 { margin: 2px 0 6px; font: 600 17px/1.25 Georgia, 'Times New Roman', serif; }
+.card h4 a { color: var(--ink); text-decoration: none; } .card h4 a:hover { color: var(--accent); }
+.card .yr { margin: 0; font: 11px ui-monospace, monospace; color: var(--mute); letter-spacing: .06em; }
+.card .g { margin: 0 0 8px; font-size: 12px; color: var(--mute); }
+.card .why { margin: 0; font-size: 12px; color: #4A463F; border-top: 1px dashed var(--line); padding-top: 6px; }
+.card .why b { color: var(--accent); font-weight: 600; }
+@media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .hd h1 { font-size: 30px; } }

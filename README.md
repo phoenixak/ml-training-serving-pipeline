@@ -6,7 +6,7 @@
 
 The recommendation architecture large platforms use, trained end to end on **MovieLens-32M** and served without PyTorch: a **two-tower** model retrieves 100 candidates from the catalogue, a **DLRM-style ranker** re-orders them, and both run in **ONNX Runtime** in about 2 ms per request on two CPU threads.
 
-**[Try the live demo →](https://huggingface.co/spaces/Phoenixak99/movie-recommender)** Pick a few movies you like; every recommendation says which of your picks it is closest to. Because users are represented by the movies they liked rather than by an id, a brand-new visitor gets real recommendations immediately.
+**[Try the live demo →](https://huggingface.co/spaces/Phoenixak99/movie-recommender)** Pick a few movies you like; every recommendation says which of your picks it is closest to. Because users are represented by the movies they liked rather than by an id, a brand-new visitor gets real recommendations immediately. The demo runs both ONNX models in your browser with ONNX Runtime Web (`web/`), and its results match the Python server exactly.
 
 ## Results
 
@@ -65,7 +65,8 @@ python -m recsys.data                     # → data/processed (~20 s)
 python -m recsys.train --out artifacts    # ~25 min on a 16-thread CPU; evaluates, logs to MLflow, exports ONNX
 mlflow ui --backend-store-uri ./mlruns    # browse runs
 
-python space/app.py                       # the demo on http://127.0.0.1:7860
+python -m recsys.export_web               # → web/model; then serve web/ with any static server
+python space/app.py                       # the same demo as a Gradio app on http://127.0.0.1:7860
 uvicorn recsys.api:app --app-dir src      # the API
 pytest -q                                 # 7 tests, incl. ONNX ↔ PyTorch equivalence; no download needed
 ```

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movie Recommender</title>
+<meta name="description" content="Two-tower retrieval + DLRM ranking on MovieLens-32M, running entirely in your browser with ONNX Runtime Web.">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.min.js"></script>
+</head>
+<body>
+<main class="wrap">
+  <header class="hd">
+    <p class="kicker">Two-tower retrieval · DLRM ranking · ONNX Runtime in your browser</p>
+    <h1>Movies you'll like next</h1>
+    <p class="lede">Pick a few movies you enjoyed. A two-tower model trained on MovieLens-32M turns them into a taste vector and pulls 100 candidates out of 4,779 movies; a DLRM-style ranker re-orders them. Both models run right here in your browser — nothing is sent anywhere.</p>
+    <p class="links"><a href="https://github.com/phoenixak/ml-training-serving-pipeline" target="_blank" rel="noopener">Code &amp; evaluation ↗</a><a href="https://ahmed.fynxforge.com" target="_blank" rel="noopener">Ahmed Khaled Ali ↗</a></p>
+  </header>
+
+  <div class="layout">
+    <section class="side">
+      <label class="lbl" for="q">Movies you like</label>
+      <div class="search">
+        <input id="q" type="search" placeholder="Search a title, e.g. Spirited Away" autocomplete="off" disabled>
+        <ul id="suggest" class="suggest" hidden></ul>
+      </div>
+      <div id="picked" class="picked"></div>
+      <p class="lbl">Or start from</p>
+      <div id="presets" class="presets"></div>
+      <label class="toggle"><input id="rerank" type="checkbox" checked> Re-rank with the DLRM ranker <span class="muted">(untick to compare)</span></label>
+      <p id="stats" class="muted stats">Loading the models (4 MB)…</p>
+    </section>
+    <section class="main">
+      <div id="out" class="grid"><p class="muted">Recommendations appear here.</p></div>
+    </section>
+  </div>
+
+  <footer class="ft">Data: MovieLens 32M — F. Maxwell Harper and Joseph A. Konstan. 2015. The MovieLens Datasets: History and Context. ACM TiiS 5, 4. Used for non-commercial research and demonstration under the GroupLens terms; no endorsement by the University of Minnesota or GroupLens is implied. Links go to The Movie Database.</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
